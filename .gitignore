@@ -1,0 +1,8 @@
+# Directories
+./webpack/bundler
+./webpack/node_modules
+./webpack/static
+
+# Files
+**.json
+./webpack/readme.md
