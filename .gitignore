@@ -2,7 +2,6 @@
 webpack/bundler
 webpack/node_modules
 webpack/static
-webpack/dist
 
 # Files
 **.json
