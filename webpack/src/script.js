@@ -21,19 +21,23 @@ window.addEventListener('mousemove', (event) => {
 const scene = new THREE.Scene();
 const group = new THREE.Group();
 scene.add(group);
-// Red Cube
-const geometry = new THREE.BoxGeometry(1, 1, 1);
-const material = new THREE.MeshBasicMaterial({ color:'red' });
-const cube1    = new THREE.Mesh(geometry, material);
-group.add(cube1);
-// Green Cube
-const cube2 = new THREE.Mesh(
-    new THREE.BoxGeometry(1, 1, 1),
-    new THREE.MeshBasicMaterial({color:'blue'})
-)
-cube2.position.set(-2, 0, 0);
-group.add(cube2)
-group.scale.set(1, 1, 1)
+// Geometry
+const positionsArray = new Float32Array([
+    0, 0, 0,
+    0, 1, 0,
+    1, 0, 0
+])
+const positionsAttribute = new THREE.BufferAttribute(positionsArray, 3)
+const geometry = new THREE.BufferGeometry()
+geometry.setAttribute('position', positionsAttribute)
+const material = new THREE.MeshBasicMaterial({ 
+    color:'red',
+    wireframe: true
+
+});
+const mesh    = new THREE.Mesh(geometry, material);
+group.add(mesh);
+// group.position.y -= 0.5
 
 // +++++++++++++++++++++++++++++++++++++++
 // +++  Renderer
@@ -54,7 +58,7 @@ const camera   = new THREE.PerspectiveCamera(55, sizes.width / sizes.height, 1, 
 // const camera   = new THREE.OrthographicCamera(-1 * aspectRatio, 1 * aspectRatio, 1, -1, 0.1, 1000);
 // camera.position.set(1, 1, 5);
 camera.position.z = 2; 
-camera.lookAt(cube1.position);
+camera.lookAt(mesh.position);
 // camera.lookAt(new THREE.Vector3(0, 0, 0));
 scene.add(camera);
 
@@ -110,8 +114,8 @@ const controls = new OrbitControls(camera, canvas);
 // +++  Animations
 //let time = Date.now();
 const clock = new THREE.Clock();
-gsap.to(cube2.position, { duration: 1, delay: 1, x: -4 } );
-gsap.to(cube2.position, { duration: 1, delay: 2, x: -2 } );
+gsap.to(mesh.position, { duration: 1, delay: 1, x: -1 } );
+gsap.to(mesh.position, { duration: 1, delay: 2, x: 0 } );
 
 const tick = () => {
     
@@ -123,14 +127,14 @@ const tick = () => {
 
     // UPDATE Render
     //camera.position.set(cursor.x * 3, cursor.y * 3, camera.position.z);
-    // rotate around the cube
+    // rotate around the mesh
     // camera.position.x = Math.sin(cursor.x * Math.PI * 2) * 3;
     // camera.position.z = Math.cos(cursor.x * Math.PI * 2) * 3;
     // camera.position.y = cursor.y * 5;
-    // camera.lookAt(cube1.position)
+    // camera.lookAt(mesh.position)
     // Update objects
-    //cube1.rotation.y = elapsedTime * Math.PI * 2;
-    //cube2.position.y = Math.sin(elapsedTime);
+    //mesh.rotation.y = elapsedTime * Math.PI * 2;
+    //mesh.position.y = Math.sin(elapsedTime);
 
     // UPDATE Controls
     controls.update();
