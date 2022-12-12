@@ -5,4 +5,5 @@ webpack/static
 
 # Files
 **.json
+**.bat
 webpack/readme.md

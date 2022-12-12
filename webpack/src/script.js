@@ -1,10 +1,23 @@
-//////////////////////////////
-//+++ Comment when commit ++//
 import './style.css'
 import * as THREE from './three.js'
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import gsap from 'gsap'
 
-// Scene
+// +++++++++++++++++++++++++++++++++++++++
+// +++  Cursor Data
+const cursor = {
+    x: 0,
+    y: 0
+}
+
+window.addEventListener('mousemove', (event) => {
+    cursor.x = event.clientX / sizes.width  - 0.5;
+    cursor.y = - (event.clientY / sizes.height - 0.5);
+});
+
+
+// +++++++++++++++++++++++++++++++++++++++
+// +++  Scene
 const scene = new THREE.Scene();
 const group = new THREE.Group();
 scene.add(group);
@@ -22,46 +35,68 @@ cube2.position.set(-2, 0, 0);
 group.add(cube2)
 group.scale.set(1, 1, 1)
 
-// Camera
+// +++++++++++++++++++++++++++++++++++++++
+// +++  Camera
 const sizes = {
     width: 800,
     height: 600
 }
-const camera   = new THREE.PerspectiveCamera(55, sizes.width / sizes.height);
-camera.position.x = 1;
-camera.position.y = 1;
-camera.position.z = 3;
-camera.position.set(1, 1, 5);
-camera.lookAt(cube2.position);
-//camera.lookAt(new THREE.Vector3(0, 0, 0));
+const aspectRatio = sizes.width / sizes.height
+const camera   = new THREE.PerspectiveCamera(55, sizes.width / sizes.height, 1, 1000);
+// const camera   = new THREE.OrthographicCamera(-1 * aspectRatio, 1 * aspectRatio, 1, -1, 0.1, 1000);
+// camera.position.set(1, 1, 5);
+camera.position.z = 2; 
+camera.lookAt(cube1.position);
+// camera.lookAt(new THREE.Vector3(0, 0, 0));
 scene.add(camera);
 
-// Axes helper
+// +++++++++++++++++++++++++++++++++++++++
+// +++  Axes Helper
 const axesHelper = new THREE.AxesHelper();
 scene.add(axesHelper);
 
-// Renderer
+// +++++++++++++++++++++++++++++++++++++++
+// +++  Renderer
 const canvas = document.querySelector('.webgl');
-console.log(canvas)
 const renderer = new THREE.WebGLRenderer({ canvas });
 renderer.setSize(sizes.width, sizes.height);
 
+// +++++++++++++++++++++++++++++++++++++++
+// +++  Controls
+const controls = new OrbitControls(camera, canvas);
+// controls.enableDamping = true;
+// controls.target.y = 1;
+
+// +++++++++++++++++++++++++++++++++++++++
+// +++  Animations
 //let time = Date.now();
 const clock = new THREE.Clock();
 gsap.to(cube2.position, { duration: 1, delay: 1, x: -4 } );
 gsap.to(cube2.position, { duration: 1, delay: 2, x: -2 } );
-// Animations
+
 const tick = () => {
     
-    // Time
+    // UPDATE Time
     const elapsedTime = clock.getElapsedTime();
     //const currentTime = Date.now();
     //const deltaTime = currentTime - time
     //time = currentTime;
+
+    // UPDATE Render
+    //camera.position.set(cursor.x * 3, cursor.y * 3, camera.position.z);
+    // rotate around the cube
+    // camera.position.x = Math.sin(cursor.x * Math.PI * 2) * 3;
+    // camera.position.z = Math.cos(cursor.x * Math.PI * 2) * 3;
+    // camera.position.y = cursor.y * 5;
+    // camera.lookAt(cube1.position)
     // Update objects
-    cube1.rotation.y = elapsedTime * Math.PI * 2;
-    cube2.position.y = Math.sin(elapsedTime);
-    // Render
+    //cube1.rotation.y = elapsedTime * Math.PI * 2;
+    //cube2.position.y = Math.sin(elapsedTime);
+
+    // UPDATE Controls
+    controls.update();
+
+    // UPDATE Render
     renderer.render(scene, camera);
     window.requestAnimationFrame(tick);
 }
