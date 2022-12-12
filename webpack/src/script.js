@@ -5,6 +5,57 @@ import gsap from 'gsap'
 import * as dat from 'dat.gui'
 
 // +++++++++++++++++++++++++++++++++++++++
+// +++  Textures
+const loadingManager = new THREE.LoadingManager();
+loadingManager.onStart = () =>
+{
+    console.log('loading started');
+}
+loadingManager.onLoad = () =>
+{
+    console.log('loading finished');
+}
+loadingManager.onProgress = () =>
+{
+    console.log('loading progressing');
+}
+loadingManager.onError = () =>
+{
+    console.log('loading error');
+}
+const textureLoader = new THREE.TextureLoader(loadingManager);
+const texture = textureLoader.load(
+        '/textures/matcaps/1.png',
+        () => 
+        {
+            console.log('load');
+        },
+        () =>
+        {
+            console.log('progress');
+        }, 
+        () =>
+        {
+            console.log('error');
+        });
+// Options
+//texture.repeat.x = 2;
+//texture.repeat.y = 3;
+//texture.wrapS = THREE.MirroredRepeatWrapping;
+//texture.wrapT = THREE.MirroredRepeatWrapping;
+
+//texture.offset.x = 0.5;
+//texture.offset.y = 0.5;
+
+//texture.rotation = Math.PI / 4;
+//texture.center.x = 0.5;
+//texture.center.y = 0.5;
+
+//texture.generateMipmaps = false;
+//texture.minFilter = THREE.NearestFilter;
+//texture.magFilter = THREE.NearestFilter;
+
+// +++++++++++++++++++++++++++++++++++++++
 // +++  Debug
 const gui = new dat.GUI({ closed: true, width: 400 });
 const debugObject =
@@ -79,6 +130,7 @@ group.add(mesh)
 const geo2 = new THREE.BoxBufferGeometry(1, 1, 1)
 const mat2 = new THREE.MeshBasicMaterial({
     color: debugObject.color,
+    map: texture,
     wireframe: debugObject.enableWireframe
 })
 const cube    = new THREE.Mesh(geo2, mat2);
@@ -113,7 +165,7 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 const camera   = new THREE.PerspectiveCamera(55, sizes.width / sizes.height, 1, 1000);
 // const camera   = new THREE.OrthographicCamera(-1 * aspectRatio, 1 * aspectRatio, 1, -1, 0.1, 1000);
 // camera.position.set(1, 1, 5);
-camera.position.z = 2; 
+camera.position.z = 5 
 camera.lookAt(mesh.position);
 // camera.lookAt(new THREE.Vector3(0, 0, 0));
 scene.add(camera);
