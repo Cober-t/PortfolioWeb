@@ -2,6 +2,45 @@ import './style.css'
 import * as THREE from './three.js'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import gsap from 'gsap'
+import * as dat from 'dat.gui'
+
+// +++++++++++++++++++++++++++++++++++++++
+// +++  Debug
+const gui = new dat.GUI({ closed: true, width: 400 });
+const debugObject =
+{
+    color: 0xff0000,
+    spin: () =>
+    {
+        gsap.to(cube.rotation, { duration: 1, y: cube.rotation.y + Math.PI})
+    },
+    fullscreen: () =>
+    {
+        const fullScreenElement = document.fullscreenElement || document.webkiFullscreenElement;
+        if(!fullScreenElement){
+            if(canvas.requestFullscreen)
+                canvas.requestFullscreen()
+            else if(canvas.webkiFullscreenElement)
+                canvas.webkiFullscreenElement();
+        }
+        else {
+            if(document.exitFullscreen)
+                document.exitFullscreen();
+            else if (document.webkiFullscreenElement)
+                document.webkiFullscreenElement();
+        }
+    },
+    enableWireframe: false,
+    visible: true
+}
+gui.addColor(debugObject, 'color')
+   .onChange(() =>
+    {
+        mat1.color.set(debugObject.color);
+        mat2.color.set(debugObject.color);
+    })
+
+
 
 // +++++++++++++++++++++++++++++++++++++++
 // +++  Cursor Data
@@ -28,16 +67,33 @@ const positionsArray = new Float32Array([
     1, 0, 0
 ])
 const positionsAttribute = new THREE.BufferAttribute(positionsArray, 3)
-const geometry = new THREE.BufferGeometry()
-geometry.setAttribute('position', positionsAttribute)
-const material = new THREE.MeshBasicMaterial({ 
-    color:'red',
+const geo1 = new THREE.BufferGeometry();
+geo1.setAttribute('position', positionsAttribute);
+const mat1 = new THREE.MeshBasicMaterial({ 
+    color: debugObject.color,
     wireframe: true
-
 });
-const mesh    = new THREE.Mesh(geometry, material);
-group.add(mesh);
-// group.position.y -= 0.5
+const mesh    = new THREE.Mesh(geo1, mat1);
+group.add(mesh)
+
+const geo2 = new THREE.BoxBufferGeometry(1, 1, 1)
+const mat2 = new THREE.MeshBasicMaterial({
+    color: debugObject.color,
+    wireframe: debugObject.enableWireframe
+})
+const cube    = new THREE.Mesh(geo2, mat2);
+cube.position.y -= 1
+group.add(cube)
+// Debug
+// gui.add(mesh.position, 'y', -3, 3, 0.1)
+gui.add(mesh.position, 'y')
+   .min(-3)
+   .max(3)
+   .step(0.1)
+   .name('Y')
+gui.add(group, 'visible')
+gui.add(debugObject, 'spin')
+gui.add(debugObject, 'fullscreen')
 
 // +++++++++++++++++++++++++++++++++++++++
 // +++  Renderer
@@ -61,26 +117,6 @@ camera.position.z = 2;
 camera.lookAt(mesh.position);
 // camera.lookAt(new THREE.Vector3(0, 0, 0));
 scene.add(camera);
-
-// Fullscreen
-window.addEventListener('dblclick', () => 
-{
-    // for Safari browser
-    const fullScreenElement = document.fullscreenElement || document.webkiFullscreenElement;
-    if(!fullScreenElement){
-        if(canvas.requestFullscreen)
-            canvas.requestFullscreen()
-        else if(canvas.webkiFullscreenElement)
-            canvas.webkiFullscreenElement();
-    }
-    else {
-        if(document.exitFullscreen)
-            document.exitFullscreen();
-        else if (document.webkiFullscreenElement)
-            document.webkiFullscreenElement();
-    }
-
-})
 
 // Resizing
 window.addEventListener('resize', () => 
