@@ -1,30 +1,35 @@
 import './style.css'
-import * as THREE from './three.js'
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import gsap from 'gsap'
+import * as THREE from 'three'
 import * as dat from 'dat.gui'
-import { PointLight } from 'three/src/Three'
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { FontLoader } from 'three/examples/jsm/loaders/FontLoader.js'
+import { TextGeometry } from 'three/examples/jsm/geometries/TextGeometry'
+import { PointLight, TetrahedronGeometry } from 'three/src/Three'
+import gsap from 'gsap'
+
+// +++++++++++++++++++++++++++++++++++++++
+// +++  Scene
+const scene = new THREE.Scene();
 
 // +++++++++++++++++++++++++++++++++++++++
 // +++  Textures
-const textureLodaer = new THREE.TextureLoader()
-const furAlbedo = textureLodaer.load('/textures/fur/albedo.png')
-const furAO = textureLodaer.load('/textures/fur/ambientOcclusion.png')
-const furHeight = textureLodaer.load('/textures/fur/height.png')
-const furNormal = textureLodaer.load('/textures/fur/normal.png')
+const textureLoader = new THREE.TextureLoader()
+const furAlbedo = textureLoader.load('/textures/fur/albedo.png')
+const furAO = textureLoader.load('/textures/fur/ambientOcclusion.png')
+const furHeight = textureLoader.load('/textures/fur/height.png')
+const furNormal = textureLoader.load('/textures/fur/normal.png')
 
-const rockWallAlbedo = textureLodaer.load('/textures/rockWall/albedo.png')
-const rockWallAO = textureLodaer.load('/textures/rockWall/ambientOcclusion.png')
-const rockWallHeight = textureLodaer.load('/textures/rockWall/height.png')
-const rockWallNormal = textureLodaer.load('/textures/rockWall/normal.png')
+const rockWallAlbedo = textureLoader.load('/textures/rockWall/albedo.png')
+const rockWallAO = textureLoader.load('/textures/rockWall/ambientOcclusion.png')
+const rockWallHeight = textureLoader.load('/textures/rockWall/height.png')
+const rockWallNormal = textureLoader.load('/textures/rockWall/normal.png')
 
-const bamboAlbedo = textureLodaer.load('/textures/bamboWood/albedo.png')
-const bamboAO = textureLodaer.load('/textures/bamboWood/ambientOcclusion.png')
-const bamboRoughness = textureLodaer.load('/textures/bamboWood/roughness.png')
-const bamboMetallic = textureLodaer.load('/textures/bamboWood/metallic.png')
-const bamboNormal = textureLodaer.load('/textures/bamboWood/normal.png')
+const bamboAlbedo = textureLoader.load('/textures/bamboWood/albedo.png')
+const bamboAO = textureLoader.load('/textures/bamboWood/ambientOcclusion.png')
+const bamboRoughness = textureLoader.load('/textures/bamboWood/roughness.png')
+const bamboNormal = textureLoader.load('/textures/bamboWood/normal.png')
 
-const matcapTex = textureLodaer.load('/textures/matcaps/7.png')
+const matcapTex = textureLoader.load('/textures/matcaps/7.png')
 matcapTex.minFilter = THREE.NearestFilter;
 matcapTex.magFilter = THREE.NearestFilter;
 matcapTex.generateMipmaps = false;  // If we are using NearestFilter
@@ -41,6 +46,38 @@ const envMapTex = cubeTexLoader.load([
     '/textures/environmentMaps/0/pz.jpg',
     '/textures/environmentMaps/0/nz.jpg'
 ])
+
+// +++++++++++++++++++++++++++++++++++++++
+// +++  Fonts
+const fontLoader = new FontLoader();
+const matcapMaterial = new THREE.MeshMatcapMaterial({ matcap: matcapTex });
+const textValue = 'Hello Three.js';
+fontLoader.load(
+    '/fonts/helvetiker_regular.typeface.json',
+    (font) =>
+    {
+        const textGeometry = new TextGeometry (
+            textValue,
+            {
+                font:   font,
+                size:   0.5,
+                height: 0.2,
+                curveSegments: 4,
+                bevelEnabled: true,
+                bevelThickness: 0.03,
+                bevelSize: 0.02,
+                bevelOffset: 0,
+                bevelSegments: 3
+            }
+        )
+        textGeometry.computeBoundingBox();
+        textGeometry.center();
+
+        const text = new THREE.Mesh(textGeometry, matcapMaterial);
+        text.position.y = 1.5;
+        scene.add(text);
+    }
+);
 
 // +++++++++++++++++++++++++++++++++++++++
 // +++  Debug
@@ -195,13 +232,32 @@ plane.geometry.setAttribute(
     new THREE.BufferAttribute(plane.geometry.attributes.uv.array, 2)
 );
 
-// +++++++++++++++++++++++++++++++++++++++
-// +++  Scene
-const scene = new THREE.Scene();
 scene.add(group);
 scene.add(ambientLight, pointLight, pointLightBox);
 scene.add(axesHelper);
 gui.add(group, 'visible');
+
+/////////////////////////////////////////
+//////////   100 donuts test  ///////////
+console.time('donuts');
+const donutGeometry = new THREE.TorusBufferGeometry(0.3, 0.2, 20, 45)
+
+for (let i = 0; i < 1000; i++){
+    const donut = new THREE.Mesh(donutGeometry, matcapMaterial);
+
+    donut.position.x = (Math.random() - 0.5) * 10;
+    donut.position.y = (Math.random() - 0.5) * 10;
+    donut.position.z = (Math.random() - 0.5) * 10;
+
+    donut.rotation.x = Math.random() * Math.PI;
+    donut.rotation.y = Math.random() * Math.PI;
+
+    const randomScale = Math.random() * 0.1;
+    donut.scale.set(randomScale, randomScale, randomScale);
+    
+    scene.add(donut);
+}
+console.timeEnd('donuts');
 
 // +++++++++++++++++++++++++++++++++++++++
 // +++  Renderer
@@ -218,7 +274,7 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 
 // +++++++++++++++++++++++++++++++++++++++
 // +++  Camera
-const camera   = new THREE.PerspectiveCamera(55, sizes.width / sizes.height, 1, 1000);
+const camera   = new THREE.PerspectiveCamera(55, sizes.width / sizes.height, 0.1, 1000);
 camera.position.z = 5
 scene.add(camera);
 
