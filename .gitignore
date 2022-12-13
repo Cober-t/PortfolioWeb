@@ -2,8 +2,10 @@
 webpack/bundler
 webpack/node_modules
 webpack/static
+webpack/dist/fonts
+webpack/dist/textures
 
 # Files
-**.json
 **.bat
 webpack/readme.md
+webpack/**.json
