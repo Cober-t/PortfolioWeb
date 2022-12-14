@@ -7,9 +7,15 @@ import { RectAreaLightHelper } from 'three/examples/jsm/helpers/RectAreaLightHel
 import gsap from 'gsap'
 
 console.time('LOAD');
+
 // +++++++++++++++++++++++++++++++++++++++
 // +++  Scene
 const scene = new THREE.Scene();
+
+// +++++++++++++++++++++++++++++++++++++++
+// +++  Textures
+const textureLoader = new THREE.TextureLoader();
+const particleTexture = textureLoader.load('/textures/particles/2.png');
 
 // +++++++++++++++++++++++++++++++++++++++
 // +++  Debug
@@ -50,144 +56,48 @@ window.addEventListener('dblclick', () =>
 });
 
 // +++++++++++++++++++++++++++++++++++++++
-// +++  Lights
-// Ambient light
-const ambientLight = new THREE.AmbientLight('#ffffff', 0.25);
-scene.add(ambientLight)
-// Directional light
-const dirLight = new THREE.DirectionalLight('#ff0000', 0.4);
-dirLight.position.set(2.5, 2.5, 0);
-scene.add(dirLight)
-// Hemisphere light
-// const hemisphereLight = new THREE.HemisphereLight(0xff0000, 0x0000ff, 1)
-// scene.add(hemisphereLight);
-// Point light
-const pointLight = new THREE.PointLight('#0000ff', 0.35);
-pointLight.position.set(-0.82, 1.6, -0.82);
-pointLight.distance = 3;
-pointLight.decay = 0.5;
-scene.add(pointLight);
-gui.add(pointLight.position, 'x').min(-3).max(3).step(0.01);
-gui.add(pointLight.position, 'y').min(-3).max(3).step(0.01);
-gui.add(pointLight.position, 'z').min(-3).max(3).step(0.01);
-gui.add(pointLight, 'intensity').min(0).max(1).step(0.01);
-gui.add(pointLight, 'distance').min(0).max(10).step(0.01);
-gui.add(pointLight, 'decay').min(0).max(1).step(0.01);
-gui.add(ambientLight, 'intensity').min(0).max(1).step(0.01);
-gui.addColor(debugObject, 'color')
-.onChange(() => {
-    pointLight.color.set(debugObject.color);
-})
-// RectArea light (high cost)
-const rectAreaLight = new THREE.RectAreaLight(0xf000ff, 1, 2, 1);
-rectAreaLight.position.set(1, -0.4, 1.5);
-rectAreaLight.lookAt(new THREE.Vector3());
-scene.add(rectAreaLight);
-// Spot light (high cost)
-const spotLight = new THREE.SpotLight(0xffff00, 0.5, 6, Math.PI * 0.1, 0.25, 1);
-scene.add(spotLight);
-spotLight.position.x = -1;
-spotLight.target.position.x = -0.25;
-scene.add(spotLight.target);
+// +++  Geometry 
+// Cube
+const cubeMesh = new THREE.Mesh(
+    new THREE.BoxBufferGeometry(),
+    new THREE.MeshBasicMaterial()
+);
+scene.add(cubeMesh);
+// Particles
+// const particlesGeo = new THREE.SphereBufferGeometry(1, 32, 32);
+// Custom Geometry
+const particlesGeo = new THREE.BufferGeometry();
+const count = 100000;
+const positions = new Float32Array(count * 3);
+const colors = new Float32Array(count * 3);
 
-// Shadows
-dirLight.castShadow = true;
-dirLight.shadow.mapSize.set(1024, 1024);
-dirLight.shadow.camera.far = 6.5;
-dirLight.shadow.camera.near = 1;
-dirLight.shadow.camera.top = 2;
-dirLight.shadow.camera.right = 2;
-dirLight.shadow.camera.bottom = -2;
-dirLight.shadow.camera.left = -2;
-// dirLight.shadow.radius = 5;
-pointLight.castShadow = true;
-pointLight.shadow.mapSize.set(1024, 1024);
-pointLight.shadow.camera.far = 3;
-pointLight.shadow.camera.near = 1;
+for (let i = 0; i < count * 3; i++) {
+    positions[i] = (Math.random() - 0.5) * 100;
+    colors[i] = Math.random(); 
+}
 
-spotLight.castShadow = true;
-spotLight.shadow.mapSize.set(1024, 1024);
-spotLight.shadow.camera.far = 3;
-spotLight.shadow.camera.near = 0.5;
-spotLight.shadow.camera.fov = 30;
+particlesGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+particlesGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
-// Light helpers
-const groupLightHelpers = new THREE.Group();
-const directionalLightHelper = new THREE.DirectionalLightHelper(dirLight, 0.1);
-// const hemisphereLightHelper = new THREE.HemisphereLightHelper(hemisphereLight, 0.1);
-const pointLightHelper = new THREE.PointLightHelper(pointLight, 0.1);
-const spotLightHelper = new THREE.SpotLightHelper(spotLight);
-window.requestAnimationFrame(() =>
-{
-    spotLightHelper.update();
-})
-const rectAreaLightHelper = new RectAreaLightHelper(rectAreaLight);
-// Camera helpers
-// const directionalLightCameraHelper = new THREE.CameraHelper(dirLight.shadow.camera);
-// const pointLightCameraHelper = new THREE.CameraHelper(pointLight.shadow.camera);
-// const spotLightCameraHelper = new THREE.CameraHelper(spotLight.shadow.camera);
-
-groupLightHelpers.add(  directionalLightHelper, 
-                        // hemisphereLightHelper, 
-                        pointLightHelper, 
-                        spotLightHelper, 
-                        rectAreaLightHelper,
-                        //directionalLightCameraHelper,
-                        //pointLightCameraHelper,
-                        // spotLightCameraHelper
-                     );
-scene.add(groupLightHelpers);
-gui.add(groupLightHelpers, 'visible');
+// Material
+// Bad idea for animate particles, we must use a custom shader
+const particlesMat = new THREE.PointsMaterial();
+particlesMat.size = 0.5;
+particlesMat.sizeAttenuation = true;
+// particlesMat.color = new THREE.Color(0xff88cc); // If exist this and vertexColor return a mix
+particlesMat.transparent = true;
+particlesMat.alphaMap = particleTexture;
+particlesMat.vertexColors = true;
+// Solutions for z-buffer...
+// particlesMat.alphaTest = 0.001; // not exactly
+// particlesMat.depthTest = false; // dont work if there are other things on scene
+particlesMat.depthWrite = false;   // not writing in the depth buffer (good solution)
+// particlesMat.blending = THREE.AdditiveBlending // high cost and bright result
 
 // +++++++++++++++++++++++++++++++++++++++
-// +++  Geometry
-const group = new THREE.Group();
-const material = new THREE.MeshStandardMaterial();
-material.roughness = 0.2;
-gui.add(material, 'roughness').min(0).max(1).step(0.01);
-// Sphere
-const sphere = new THREE.Mesh(
-    new THREE.SphereBufferGeometry(0.5, 62, 62),
-    material
-)
-sphere.position.x = -1.5
-sphere.castShadow = true;
-sphere.receiveShadow = true;
-group.add(sphere);
-// Torus
-const torus = new THREE.Mesh(
-    new THREE.TorusBufferGeometry(0.4, 0.3, 64, 128),
-    material
-)
-torus.position.x = 1.5
-torus.castShadow = true;
-torus.receiveShadow = true;
-group.add(torus);
-// Plane
-const planeMat = new MeshStandardMaterial();
-planeMat.roughness = 0.2;
-// planeMat.side = THREE.DoubleSide;
-const plane = new THREE.Mesh(
-    new THREE.PlaneBufferGeometry(1, 1),
-    planeMat
-)
-plane.castShadow = true;
-plane.receiveShadow = true;
-group.add(plane);
-// Floor
-const floor = new THREE.Mesh(
-    new THREE.PlaneBufferGeometry(1, 1),
-    material
-)
-floor.scale.set(5, 5)
-floor.position.y = -1
-floor.rotation.x = -Math.PI/2;
-floor.castShadow = true;
-floor.receiveShadow = true;
-group.add(floor);
-
-scene.add(group);
-gui.add(group, 'visible');
+// +++  Particles (Points)
+const particles = new THREE.Points(particlesGeo, particlesMat);
+scene.add(particles);
 
 // +++++++++++++++++++++++++++++++++++++++
 // +++  Renderer
@@ -201,12 +111,6 @@ const canvas = document.querySelector('.webgl');
 const renderer = new THREE.WebGLRenderer({ canvas });
 renderer.setSize(sizes.width, sizes.height);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-// Shadows
-renderer.shadowMap.enabled = true;
-// renderer.shadow.type = THREE.BasicShadowMap;
-renderer.shadowMap.type = THREE.PCFShadowMap; // Radius property doeesn't work here
-// renderer.shadow.type = THREE.PCFSoftShadowMap;
-// renderer.shadow.type = THREE.VSMShadowMap;
 
 // +++++++++++++++++++++++++++++++++++++++
 // +++  Camera
@@ -245,16 +149,21 @@ const tick = () => {
     // UPDATE Time
     const elapsedTime = clock.getElapsedTime();
 
-    sphere.rotation.y = 0.3 * elapsedTime
-    torus.rotation.y = 0.3 * elapsedTime
-    plane.rotation.y = 0.3 * elapsedTime
-
-    sphere.rotation.x = 0.4 * elapsedTime
-    torus.rotation.x = 0.4 * elapsedTime
-    plane.rotation.x = 0.4 * elapsedTime
-
     // UPDATE Controls
     controls.update();
+
+    // UPDATE Particles
+    for(let i = 0; i < count; i++)
+    {
+        const i3 = i * 3;
+
+        // x: i3 + 0 -- y = i3 + 1 --  z = i3 + 2
+        const x = particlesGeo.attributes.position.array[i3];
+        // Bad idea, for update thousands of particles we must use a custom shader
+        particlesGeo.attributes.position.array[i3 + 1] = Math.sin(elapsedTime + x);
+    }
+    // For update attributes in geometry
+    particlesGeo.attributes.position.needsUpdate = true;
 
     // UPDATE Render
     renderer.render(scene, camera);
