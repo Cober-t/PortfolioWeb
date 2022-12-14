@@ -13,11 +13,6 @@ console.time('LOAD');
 const scene = new THREE.Scene();
 
 // +++++++++++++++++++++++++++++++++++++++
-// +++  Textures
-const textureLoader = new THREE.TextureLoader();
-const particleTexture = textureLoader.load('/textures/particles/2.png');
-
-// +++++++++++++++++++++++++++++++++++++++
 // +++  Debug
 const gui = new dat.GUI();
 
@@ -57,47 +52,96 @@ window.addEventListener('dblclick', () =>
 
 // +++++++++++++++++++++++++++++++++++++++
 // +++  Geometry 
-// Cube
-const cubeMesh = new THREE.Mesh(
-    new THREE.BoxBufferGeometry(),
-    new THREE.MeshBasicMaterial()
-);
-scene.add(cubeMesh);
-// Particles
-// const particlesGeo = new THREE.SphereBufferGeometry(1, 32, 32);
-// Custom Geometry
-const particlesGeo = new THREE.BufferGeometry();
-const count = 100000;
-const positions = new Float32Array(count * 3);
-const colors = new Float32Array(count * 3);
+const parameters = {}
+parameters.count = 200000;
+parameters.size = 0.001;
+parameters.radius = 5;
+parameters.branches = 5;
+parameters.spin = 1;
+parameters.randomness = 0.2;
+parameters.randomnessPower = 6;
+parameters.insideColor = '#ff6030'
+parameters.outsideColor = '#1b3984'
 
-for (let i = 0; i < count * 3; i++) {
-    positions[i] = (Math.random() - 0.5) * 100;
-    colors[i] = Math.random(); 
+let geometry = null;
+let material = null;
+let points = null;
+
+const generateGalaxy = () =>
+{
+
+    if(points !== null) 
+    {
+        geometry.dispose();
+        material.dispose();
+        scene.remove(points);
+    }
+
+    geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(parameters.count * 3);
+    const colors = new Float32Array(parameters.count * 3);
+    
+    const colorInside = new THREE.Color(parameters.insideColor);
+    const colorOutside = new THREE.Color(parameters.outsideColor);
+
+    for (let i = 0; i < parameters.count; i++) 
+    {
+        const i3 = i * 3;
+        const radius = Math.random() * parameters.radius;
+
+        const spinAngle = radius * parameters.spin;
+        const branchAngle = (i % parameters.branches) / parameters.branches * Math.PI * 2;
+
+        const randomX = Math.pow(Math.random(), parameters.randomnessPower) * (Math.random() < 0.5 ? 1 : -1) * parameters.radius;
+        const randomY = Math.pow(Math.random(), parameters.randomnessPower) * (Math.random() < 0.5 ? 1 : -1) * parameters.radius;
+        const randomZ = Math.pow(Math.random(), parameters.randomnessPower) * (Math.random() < 0.5 ? 1 : -1) * parameters.radius;
+
+        positions[i3 + 0] = Math.cos(branchAngle + spinAngle) * radius + randomX;
+        positions[i3 + 1] = randomY;
+        positions[i3 + 2] = Math.sin(branchAngle + spinAngle) * radius + randomZ;
+
+        const mixedColor = colorInside.clone();
+        mixedColor.lerp(colorOutside, radius / parameters.radius);
+        colors[i3 + 0] = mixedColor.r;
+        colors[i3 + 1] = mixedColor.g;
+        colors[i3 + 2] = mixedColor.b;
+    }
+
+    geometry.setAttribute (
+        'position',
+        new THREE.BufferAttribute(positions, 3)
+    );
+
+    
+    geometry.setAttribute (
+        'color',
+        new THREE.BufferAttribute(colors, 3)
+    );
+
+    material = new THREE.PointsMaterial({
+        size: parameters.size,
+        sizeAttenuation: true,
+        depthWrite: true,
+        blending: THREE.AdditiveBlending
+    })
+    material.vertexColors = true;
+    points = new THREE.Points(geometry, material)
+    
+    scene.add(points);
 }
 
-particlesGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-particlesGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+generateGalaxy();
 
-// Material
-// Bad idea for animate particles, we must use a custom shader
-const particlesMat = new THREE.PointsMaterial();
-particlesMat.size = 0.5;
-particlesMat.sizeAttenuation = true;
-// particlesMat.color = new THREE.Color(0xff88cc); // If exist this and vertexColor return a mix
-particlesMat.transparent = true;
-particlesMat.alphaMap = particleTexture;
-particlesMat.vertexColors = true;
-// Solutions for z-buffer...
-// particlesMat.alphaTest = 0.001; // not exactly
-// particlesMat.depthTest = false; // dont work if there are other things on scene
-particlesMat.depthWrite = false;   // not writing in the depth buffer (good solution)
-// particlesMat.blending = THREE.AdditiveBlending // high cost and bright result
+gui.add(parameters, 'count').min(100).max(1000000).step(100).onFinishChange(generateGalaxy);
+gui.add(parameters, 'size').min(0.001).max(0.1).step(0.001).onFinishChange(generateGalaxy);
+gui.add(parameters, 'radius').min(0.01).max(20).step(0.01).onFinishChange(generateGalaxy);
+gui.add(parameters, 'branches').min(2).max(20).step(1).onFinishChange(generateGalaxy);
+gui.add(parameters, 'spin').min(-5).max(5).step(0.001).onFinishChange(generateGalaxy);
+gui.add(parameters, 'randomness').min(0).max(2).step(0.001).onFinishChange(generateGalaxy);
+gui.add(parameters, 'randomnessPower').min(1).max(10).step(0.001).onFinishChange(generateGalaxy);
+gui.addColor(parameters, 'insideColor').onFinishChange(generateGalaxy);
+gui.addColor(parameters, 'outsideColor').onFinishChange(generateGalaxy);
 
-// +++++++++++++++++++++++++++++++++++++++
-// +++  Particles (Points)
-const particles = new THREE.Points(particlesGeo, particlesMat);
-scene.add(particles);
 
 // +++++++++++++++++++++++++++++++++++++++
 // +++  Renderer
@@ -153,17 +197,6 @@ const tick = () => {
     controls.update();
 
     // UPDATE Particles
-    for(let i = 0; i < count; i++)
-    {
-        const i3 = i * 3;
-
-        // x: i3 + 0 -- y = i3 + 1 --  z = i3 + 2
-        const x = particlesGeo.attributes.position.array[i3];
-        // Bad idea, for update thousands of particles we must use a custom shader
-        particlesGeo.attributes.position.array[i3 + 1] = Math.sin(elapsedTime + x);
-    }
-    // For update attributes in geometry
-    particlesGeo.attributes.position.needsUpdate = true;
 
     // UPDATE Render
     renderer.render(scene, camera);
