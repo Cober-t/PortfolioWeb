@@ -2,7 +2,7 @@ import './style.css'
 import * as THREE from 'three'
 import * as dat from 'dat.gui'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import { DirectionalLight, DirectionalLightHelper, MeshStandardMaterial, PointLight, RectAreaLight, SpotLight, SpotLightShadow } from 'three/src/Three'
+import { DirectionalLight, DirectionalLightHelper, Group, MeshStandardMaterial, PointLight, RectAreaLight, SpotLight, SpotLightShadow } from 'three/src/Three'
 import { RectAreaLightHelper } from 'three/examples/jsm/helpers/RectAreaLightHelper' 
 import gsap from 'gsap'
 
@@ -52,96 +52,28 @@ window.addEventListener('dblclick', () =>
 
 // +++++++++++++++++++++++++++++++++++++++
 // +++  Geometry 
-const parameters = {}
-parameters.count = 200000;
-parameters.size = 0.001;
-parameters.radius = 5;
-parameters.branches = 5;
-parameters.spin = 1;
-parameters.randomness = 0.2;
-parameters.randomnessPower = 6;
-parameters.insideColor = '#ff6030'
-parameters.outsideColor = '#1b3984'
+const group = new Group();
+const sphere1 = new THREE.Mesh(
+    new THREE.SphereBufferGeometry(0.5, 32, 32),
+    new THREE.MeshBasicMaterial( {color: 'red'} )
+) 
+const sphere2 = new THREE.Mesh(
+    new THREE.SphereBufferGeometry(0.5, 32, 32),
+    new THREE.MeshBasicMaterial( {color: 'red'} )
+) 
+const sphere3 = new THREE.Mesh(
+    new THREE.SphereBufferGeometry(0.5, 32, 32),
+    new THREE.MeshBasicMaterial( {color: 'red'} )
+) 
+sphere1.position.x = -1.5
+sphere3.position.x =  1.5
+group.add(sphere1, sphere2, sphere3);
+scene.add(group);
 
-let geometry = null;
-let material = null;
-let points = null;
-
-const generateGalaxy = () =>
-{
-
-    if(points !== null) 
-    {
-        geometry.dispose();
-        material.dispose();
-        scene.remove(points);
-    }
-
-    geometry = new THREE.BufferGeometry();
-    const positions = new Float32Array(parameters.count * 3);
-    const colors = new Float32Array(parameters.count * 3);
-    
-    const colorInside = new THREE.Color(parameters.insideColor);
-    const colorOutside = new THREE.Color(parameters.outsideColor);
-
-    for (let i = 0; i < parameters.count; i++) 
-    {
-        const i3 = i * 3;
-        const radius = Math.random() * parameters.radius;
-
-        const spinAngle = radius * parameters.spin;
-        const branchAngle = (i % parameters.branches) / parameters.branches * Math.PI * 2;
-
-        const randomX = Math.pow(Math.random(), parameters.randomnessPower) * (Math.random() < 0.5 ? 1 : -1) * parameters.radius;
-        const randomY = Math.pow(Math.random(), parameters.randomnessPower) * (Math.random() < 0.5 ? 1 : -1) * parameters.radius;
-        const randomZ = Math.pow(Math.random(), parameters.randomnessPower) * (Math.random() < 0.5 ? 1 : -1) * parameters.radius;
-
-        positions[i3 + 0] = Math.cos(branchAngle + spinAngle) * radius + randomX;
-        positions[i3 + 1] = randomY;
-        positions[i3 + 2] = Math.sin(branchAngle + spinAngle) * radius + randomZ;
-
-        const mixedColor = colorInside.clone();
-        mixedColor.lerp(colorOutside, radius / parameters.radius);
-        colors[i3 + 0] = mixedColor.r;
-        colors[i3 + 1] = mixedColor.g;
-        colors[i3 + 2] = mixedColor.b;
-    }
-
-    geometry.setAttribute (
-        'position',
-        new THREE.BufferAttribute(positions, 3)
-    );
-
-    
-    geometry.setAttribute (
-        'color',
-        new THREE.BufferAttribute(colors, 3)
-    );
-
-    material = new THREE.PointsMaterial({
-        size: parameters.size,
-        sizeAttenuation: true,
-        depthWrite: true,
-        blending: THREE.AdditiveBlending
-    })
-    material.vertexColors = true;
-    points = new THREE.Points(geometry, material)
-    
-    scene.add(points);
-}
-
-generateGalaxy();
-
-gui.add(parameters, 'count').min(100).max(1000000).step(100).onFinishChange(generateGalaxy);
-gui.add(parameters, 'size').min(0.001).max(0.1).step(0.001).onFinishChange(generateGalaxy);
-gui.add(parameters, 'radius').min(0.01).max(20).step(0.01).onFinishChange(generateGalaxy);
-gui.add(parameters, 'branches').min(2).max(20).step(1).onFinishChange(generateGalaxy);
-gui.add(parameters, 'spin').min(-5).max(5).step(0.001).onFinishChange(generateGalaxy);
-gui.add(parameters, 'randomness').min(0).max(2).step(0.001).onFinishChange(generateGalaxy);
-gui.add(parameters, 'randomnessPower').min(1).max(10).step(0.001).onFinishChange(generateGalaxy);
-gui.addColor(parameters, 'insideColor').onFinishChange(generateGalaxy);
-gui.addColor(parameters, 'outsideColor').onFinishChange(generateGalaxy);
-
+// +++++++++++++++++++++++++++++++++++++++
+// +++  Raycaster
+let currentIntersect = null;
+const raycaster    = new THREE.Raycaster();
 
 // +++++++++++++++++++++++++++++++++++++++
 // +++  Renderer
@@ -181,6 +113,30 @@ window.addEventListener('resize', () =>
 window.dispatchEvent(new CustomEvent('resize'));
 
 // +++++++++++++++++++++++++++++++++++++++
+// +++  Mouse
+const mouse = new THREE.Vector2();
+
+window.addEventListener('mousemove', (event) =>
+{
+    mouse.x = event.clientX / sizes.width * 2 - 1;
+    mouse.y = -(event.clientY / sizes.height) * 2 + 1;
+})
+
+window.addEventListener('click', (event) =>
+{
+    if(currentIntersect !== null) {
+        switch(currentIntersect.object) {
+            case sphere1: currentIntersect.object.material.color.set('#00ff00');
+                break;
+            case sphere2: currentIntersect.object.material.color.set('#00fff0');
+                break;
+            case sphere3: currentIntersect.object.material.color.set('#ffff00');
+                break;
+        }
+    }
+})
+
+// +++++++++++++++++++++++++++++++++++++++
 // +++  Controls
 const controls = new OrbitControls(camera, canvas);
 
@@ -196,7 +152,50 @@ const tick = () => {
     // UPDATE Controls
     controls.update();
 
-    // UPDATE Particles
+    // Animate objects
+    sphere1.position.y  = Math.sin(elapsedTime * 0.3)  * 1.5;
+    sphere2.position.y  = Math.sin(elapsedTime * 0.8)  * 1.5;
+    sphere3.position.y  = Math.sin(elapsedTime * 0.45) * 1.5;
+
+    // Cast a ray
+    const objectsToTest = [sphere1, sphere2, sphere3];
+
+    if(currentIntersect == null){
+        for(const object of objectsToTest) 
+            object.material.color.set('#ff0000');
+    }
+
+    // Intersect with raycast
+    /*
+    const rayOrigin = new THREE.Vector3(-3, 0, 0);
+    const rayDirection = new THREE.Vector3(1, 0, 0)
+    rayDirection.normalize()  // Is a good practice to keep normalize
+
+    const intersetcs = raycaster.intersectObjects(objectsToTest);
+    raycaster.set(rayOrigin, rayDirection);
+
+    for(const intersect of intersetcs) 
+        intersect.object.material.color.set('#0000ff');
+    */
+
+    // Intersect with mouse
+    const intersects = raycaster.intersectObjects(objectsToTest);
+    raycaster.setFromCamera(mouse, camera);
+
+    if(intersects.length)
+    {
+        if(currentIntersect === null)
+            console.log('mouse enter');
+        for(const intersect of intersects)
+            currentIntersect = intersect;
+    }
+    else
+    {
+        if(currentIntersect !== null)
+            console.log('mouse leave');
+        currentIntersect = null;
+    }
+
 
     // UPDATE Render
     renderer.render(scene, camera);
