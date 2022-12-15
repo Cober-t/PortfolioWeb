@@ -4,78 +4,9 @@ import * as dat from 'dat.gui'
 import CANNON, { World } from 'cannon'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
-import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
 import gsap from 'gsap'
 
 console.time('LOAD');
-
-// +++++++++++++++++++++++++++++++++++++++
-// +++  Scene
-const scene = new THREE.Scene();
-
-// +++++++++++++++++++++++++++++++++++++++
-// +++  Models
-// Before gltfLoader
-const dracoLoader = new DRACOLoader();
-dracoLoader.setDecoderPath('/draco/');
-
-const gltfLoader = new GLTFLoader();
-// Don't use draco loader with low meshes
-gltfLoader.setDRACOLoader(dracoLoader);
-
-let mixer = null;
-let helmetMesh = new THREE.Group();
-gltfLoader.load(
-    '/models/Duck/glTF-Draco/Duck.gltf',
-    (gltf) =>
-    {
-        const children = [...gltf.scene.children]
-        for(const child of children)
-        {
-            child.position.x = -2;
-            child.rotation.y = -Math.PI/2;
-            scene.add(child);
-        }
-
-        // scene.add(gltf.scene);
-    }
-)
-gltfLoader.load(
-    '/models/Fox/glTF/Fox.gltf',
-    (gltf) =>
-    {
-        mixer = new THREE.AnimationMixer(gltf.scene);
-        const action = mixer.clipAction(gltf.animations[1]);
-
-        action.play();
-
-        gltf.scene.scale.set(0.025, 0.025, 0.025);
-        scene.add(gltf.scene);
-    }
-)
-
-gltfLoader.load(
-    '/models/FlightHelmet/glTF/FlightHelmet.gltf',
-    (gltf) =>
-    {
-        // Various Solutions
-        // 1: Because when we import something, it delete from the origin scene
-        //while(gltf.scene.children.length > 0)
-        //    helmetMesh.add(gltf.scene.children[0]);
-
-        // 2: For make a copy and dont delete childrens from scene
-        const children = [...gltf.scene.children];
-        for(const child of children)
-            helmetMesh.add(child);
-
-        helmetMesh.position.x = 2;
-        scene.add(helmetMesh);
-
-        // 3: Another solution consist on copy the whole scene
-        // scene.add(gltf.scene)
-    }
-)
-
 
 // +++++++++++++++++++++++++++++++++++++++
 // +++  Texture
@@ -89,6 +20,14 @@ const environmentMapTexture = cubeTexLoader.load([
     '/textures/environmentMaps/0/pz.jpg',
     '/textures/environmentMaps/0/nz.jpg'
 ]);
+// Don't apply encoding to normal textures (should have THREE.LinearEncoding)
+environmentMapTexture.encoding = THREE.sRGBEncoding;
+
+// +++++++++++++++++++++++++++++++++++++++
+// +++  Scene
+const scene = new THREE.Scene();
+scene.background = environmentMapTexture;
+// scene.environment = environmentMapTexture;
 
 // +++++++++++++++++++++++++++++++++++++++
 // +++  Debug
@@ -117,8 +56,12 @@ const debugObject =
         }
     },
     visible: true,
+    envMapIntensity: 1.6
 }
 gui.add(debugObject, 'fullscreen');
+gui.add(debugObject, 'envMapIntensity')
+   .min(0).max(10).step(0.01).name('Env_Intensity')
+   .onChange(() => { updateAllMaterials() });
 
 window.addEventListener('dblclick', () => 
 {
@@ -133,40 +76,58 @@ window.addEventListener('dblclick', () =>
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.7)
 scene.add(ambientLight)
 
-const dirLight = new THREE.DirectionalLight(0xffffff, 0.2)
+const dirLight = new THREE.DirectionalLight(0xffffff, 3)
+dirLight.position.set(0.25, 3, -2.25);
 dirLight.castShadow = true
-dirLight.shadow.mapSize.set(1024, 1024)
-dirLight.shadow.camera.far = 15
-dirLight.shadow.camera.left = - 7
-dirLight.shadow.camera.top = 7
-dirLight.shadow.camera.right = 7
-dirLight.shadow.camera.bottom = - 7
-dirLight.position.set(5, 5, 5)
+dirLight.shadow.camera.far = 15;
+dirLight.shadow.mapSize.set(1024/4, 1024/4);
+// To avoid shadow acne on smooth surfaces (bias instead of normalBias helps with flat surfaces)
+dirLight.shadow.normalBias = 0.05;
 scene.add(dirLight);
 
+gui.add(dirLight, 'intensity').min(0).max(10).step(0.001).name('Light_Intensity');
+gui.add(dirLight.position, 'x').min(-5).max(5).step(0.001).name('Light_X');
+gui.add(dirLight.position, 'y').min(-5).max(5).step(0.001).name('Light_Y');
+gui.add(dirLight.position, 'z').min(-5).max(5).step(0.001).name('Light_Z');
+
 // +++++++++++++++++++++++++++++++++++++++
-// +++  Geometry
+// +++  Models
 // Material
-const material = new THREE.MeshStandardMaterial({
-    metalness: 0.4,
-    roughness: 0.3,
-    envMap: environmentMapTexture,
-    envMapIntensity: 0.5
-});
-// Meshes
-const floor = new THREE.Mesh(
-    new THREE.PlaneGeometry(10, 10),
-    new THREE.MeshStandardMaterial({
-        color: '#777777',
-        metalness: 0.3,
-        roughness: 0.4,
-        envMap: environmentMapTexture,
-        envMapIntensity: 0.5
+const updateAllMaterials = () =>
+{
+    scene.traverse((child) =>
+    {
+        if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshStandardMaterial)
+        {
+            // If not set environment to default (scene.environment = environmentMapTexture)
+            child.material.envMap = environmentMapTexture;
+            child.material.envMapIntensity = debugObject.envMapIntensity;
+            child.material.needsUpdate = true;
+            child.castShadow = true;
+            child.receiveShadow = true;
+        }
     })
-);
-floor.receiveShadow = true;
-floor.rotation.x = -Math.PI/2;
-scene.add(floor);
+}
+
+const gltfLoader = new GLTFLoader();
+let helmetMesh = new THREE.Group();
+gltfLoader.load(
+    '/models/FlightHelmet/glTF/FlightHelmet.gltf',
+    (gltf) =>
+    {
+        const children = [...gltf.scene.children];
+        for(const child of children) 
+        {
+            child.material.envMap = environmentMapTexture;
+            helmetMesh.add(child);
+        }
+
+        helmetMesh.scale.set(5, 5, 5);
+        scene.add(helmetMesh);
+
+        updateAllMaterials();
+    }
+)
 
 // +++++++++++++++++++++++++++++++++++++++
 // +++  Renderer
@@ -179,17 +140,43 @@ const aspectRatio = sizes.width / sizes.height
 const canvas = document.querySelector('.webgl');
 const renderer = new THREE.WebGLRenderer({ 
     canvas: canvas,
-    alpha: true
+    alpha: true,
+    // Must declare after the canvas
+    // antialias: true, // renderer.antialias = true (dont work)
 });
-renderer.shadowMap.enabled = true
-renderer.shadowMap.type = THREE.PCFSoftShadowMap
 renderer.setSize(sizes.width, sizes.height);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+
+renderer.shadowMap.enabled = true
+renderer.shadowMap.type = THREE.PCFSoftShadowMap
+renderer.physicallyCorrectLights = true;
+// Encoding is a way to optimize bright and dark values according to eye sensitivity
+// sRGBEncoding is like using gammaEncoding with common value 2.2
+renderer.outputEncoding = THREE.sRGBEncoding;
+// or renderer.outputEncoding = THREE.gammaFactor;
+renderer.toneMapping = THREE.ReinhardToneMapping;
+renderer.toneMappingExposure = 3;
+
+// For HDR textures, but give some effects on LDR textures too
+gui.add(renderer, 'toneMapping', 
+{
+    No: THREE.NoToneMapping,
+    Linear: THREE.LinearToneMapping,
+    Reinhard: THREE.ReinhardToneMapping,
+    Cineon: THREE.CineonToneMapping,
+    ACESFilmic: THREE.ACESFilmicToneMapping,
+}).onFinishChange(() => 
+{ 
+    // Because last property convert toneMapping type to string
+    renderer.toneMapping = Number(renderer.toneMapping);
+    updateAllMaterials();
+});
+gui.add(renderer, 'toneMappingExposure').min(0).max(10).step(0.001).name('ToneMap_Exp');
 
 // +++++++++++++++++++++++++++++++++++++++
 // +++  Camera
 const camera   = new THREE.PerspectiveCamera(55, sizes.width / sizes.height, 0.1, 100);
-camera.position.set(-3, 3, 7)
+camera.position.set(-3, 6, 7)
 scene.add(camera);
 
 // +++++++++++++++++++++++++++++++++++++++
@@ -225,10 +212,6 @@ const tick = () => {
     const elapsedTime = clock.getElapsedTime();
     const deltaTime = elapsedTime - lastFrameTime;
     lastFrameTime = elapsedTime;
-
-    // UPDATE mixer (for loading models with animations)
-    if(mixer !== null)
-        mixer.update(deltaTime);
 
     // UPDATE control
     controls.update();
