@@ -1,9 +1,8 @@
 import './style.css'
 import * as THREE from 'three'
 import * as dat from 'dat.gui'
+import CANNON, { World } from 'cannon'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import { DirectionalLight, DirectionalLightHelper, Group, MeshStandardMaterial, PointLight, RectAreaLight, SpotLight, SpotLightShadow } from 'three/src/Three'
-import { RectAreaLightHelper } from 'three/examples/jsm/helpers/RectAreaLightHelper' 
 import gsap from 'gsap'
 
 console.time('LOAD');
@@ -13,19 +12,35 @@ console.time('LOAD');
 const scene = new THREE.Scene();
 
 // +++++++++++++++++++++++++++++++++++++++
+// +++  Audio
+const hitSound = new Audio('/sounds/hit.mp3');
+const playHitSound = (collision) =>
+{
+    const impactStrenght = collision.contact.getImpactVelocityAlongNormal();
+    
+    if (impactStrenght > 1.5) 
+    {
+        hitSound.volume = Math.random();
+        hitSound.currentTime = 0;
+        hitSound.play();
+    }
+}
+// +++++++++++++++++++++++++++++++++++++++
+// +++  Texture
+const textureLoader = new THREE.TextureLoader();
+const cubeTexLoader = new THREE.CubeTextureLoader();
+const environmentMapTexture = cubeTexLoader.load([
+    '/textures/environmentMaps/0/px.jpg',
+    '/textures/environmentMaps/0/nx.jpg',
+    '/textures/environmentMaps/0/py.jpg',
+    '/textures/environmentMaps/0/ny.jpg',
+    '/textures/environmentMaps/0/pz.jpg',
+    '/textures/environmentMaps/0/nz.jpg'
+]);
+
+// +++++++++++++++++++++++++++++++++++++++
 // +++  Debug
 const gui = new dat.GUI();
-
-const parameters =
-{
-    materialColor: '#5261d1'
-}
-gui.addColor(parameters, 'materialColor').onChange(() =>
-{
-    material.color.set(parameters.materialColor);
-    particlesMat.color.set(parameters.materialColor);
-});
-
 const debugObject =
 {
     color: '#00ffff',
@@ -38,7 +53,7 @@ const debugObject =
         const fullScreenElement = document.fullscreenElement || document.webkiFullscreenElement;
         if(!fullScreenElement){
             if(canvas.requestFullscreen)
-                canvas.requestFullscreen()
+                canvas.requestFullscreen ()
             else if(canvas.webkiFullscreenElement)
                 canvas.webkiFullscreenElement();
         }
@@ -49,9 +64,46 @@ const debugObject =
                 document.webkiFullscreenElement();
         }
     },
-    visible: true
+    reset: () => 
+    {
+        for(const object of objectToUpdate)
+        {
+            object.body.removeEventListener('collide', playHitSound);
+            world.removeBody(object.body);
+
+            scene.remove(object.mesh);
+        }
+    },
+    visible: true,
+    createSphere: () => 
+    { 
+        createSphere( 
+        Math.random(), 
+        {
+            x:(Math.random() - 0.5) * 3,
+            y:3,
+            z:(Math.random() - 0.5) * 3,
+        }); 
+    },
+    createBox: () => 
+    { 
+        createBox(
+            Math.random(), 
+            Math.random(), 
+            Math.random(), 
+            {
+                x:(Math.random() - 0.5) * 3,
+                y:3,
+                z:(Math.random() - 0.5) * 3,
+            }
+        ); 
+    }
 }
 gui.add(debugObject, 'fullscreen');
+gui.add(debugObject, 'reset');
+gui.add(debugObject, 'createSphere');
+gui.add(debugObject, 'createBox');
+
 window.addEventListener('dblclick', () => 
 {
     if(document.fullscreenElement || document.webkiFullscreenElement)
@@ -61,66 +113,83 @@ window.addEventListener('dblclick', () =>
 });
 
 // +++++++++++++++++++++++++++++++++++++++
-// +++  Textures
-const textureLoader = new THREE.TextureLoader();
-const gradientTex = textureLoader.load('textures/gradients/3.jpg')
-gradientTex.magFilter = THREE.NearestFilter;
+// +++  Lights
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.7)
+scene.add(ambientLight)
 
-// +++++++++++++++++++++++++++++++++++++++
-// +++  Light
-const dirLight = new THREE.DirectionalLight('#ffffff', 1);
-dirLight.position.set(1, 1, 0);
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.2)
+dirLight.castShadow = true
+dirLight.shadow.mapSize.set(1024, 1024)
+dirLight.shadow.camera.far = 15
+dirLight.shadow.camera.left = - 7
+dirLight.shadow.camera.top = 7
+dirLight.shadow.camera.right = 7
+dirLight.shadow.camera.bottom = - 7
+dirLight.position.set(5, 5, 5)
 scene.add(dirLight);
 
 // +++++++++++++++++++++++++++++++++++++++
+// +++  Physics
+// World
+const world = new CANNON.World();
+// Collision Algorithm (naive for default)
+world.broadphase = new CANNON.SAPBroadphase(world);
+// Don't check rest bodies until a force affect them
+// can control body asleep with slepSpeedLimit and sleepTimeLimit
+world.allowSleep = true;
+world.gravity.set(0, -9.82, 0);
+
+// Physics Materials
+const concreteMat = new CANNON.Material('concrete');
+const plasticMat = new CANNON.Material('plastic');
+const concretePlasticContactMaterial = new CANNON.ContactMaterial(
+    concreteMat,
+    plasticMat,
+    {
+        friction: 0.1,
+        restitution: 0.7
+    }
+);
+world.addContactMaterial(concretePlasticContactMaterial);
+// world.defaultContactMaterial(defaultContactMaterial);
+
+// Floor
+const floorShape = new CANNON.Plane();
+const floorBody = new CANNON.Body();
+floorBody.mass = 0;
+floorBody.position.y = -0.5;
+floorBody.material = concreteMat;
+floorBody.quaternion.setFromAxisAngle(
+    new CANNON.Vec3(-1, 0, 0), 
+    Math.PI * 0.5);
+floorBody.addShape(floorShape);
+world.addBody(floorBody);
+
+// +++++++++++++++++++++++++++++++++++++++
 // +++  Geometry
-// Materials
-const material = new THREE.MeshToonMaterial({ 
-    color: parameters.materialColor,
-    gradientMap: gradientTex
-})
-// Meshes
-const objectsDistance = 4;
-const mesh1 = new THREE.Mesh(
-    new THREE.TorusGeometry(1, 0.4, 16, 60),
-    material
-);
-const mesh2 = new THREE.Mesh(
-    new THREE.ConeGeometry(1, 2, 32),
-    material
-);
-const mesh3 = new THREE.Mesh(
-    new THREE.TorusKnotGeometry(0.8, 0.35, 100, 16),
-    material
-);
-mesh1.position.x = 2;
-mesh1.position.y = -objectsDistance * 0;
-mesh2.position.y = -objectsDistance * 1;
-mesh2.position.x = -2;
-mesh3.position.y = -objectsDistance * 2;
-mesh3.position.x = 2;
-scene.add(mesh1, mesh2, mesh3);
-const sectionMeshes = [mesh1, mesh2, mesh3];
-// Particles
-const particlesCount = 200;
-const positions = new Float32Array(particlesCount * 3);
-
-for(let i = 0; i < particlesCount; i++)
-{
-    positions[i * 3 + 0] = (Math.random() - 0.5) * 10;
-    positions[i * 3 + 1] = objectsDistance * 0.5 - Math.random() * objectsDistance * sectionMeshes.length;
-    positions[i * 3 + 2] = (Math.random() - 0.5) * 10;
-}
-
-const particlesGeo = new THREE.BufferGeometry();
-particlesGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-const particlesMat = new THREE.PointsMaterial( {
-    color: parameters.materialColor,
-    sizeAttenuation: true,
-    size: 0.05
+// Material
+const material = new THREE.MeshStandardMaterial({
+    metalness: 0.4,
+    roughness: 0.3,
+    envMap: environmentMapTexture,
+    envMapIntensity: 0.5
 });
-const particles = new THREE.Points(particlesGeo, particlesMat);
-scene.add(particles);
+
+// Meshes
+const floor = new THREE.Mesh(
+    new THREE.PlaneGeometry(10, 10),
+    new THREE.MeshStandardMaterial({
+        color: '#777777',
+        metalness: 0.3,
+        roughness: 0.4,
+        envMap: environmentMapTexture,
+        envMapIntensity: 0.5
+    })
+);
+floor.receiveShadow = true;
+floor.position.y = -0.5;
+floor.rotation.x = -Math.PI/2;
+scene.add(floor);
 
 // +++++++++++++++++++++++++++++++++++++++
 // +++  Renderer
@@ -134,51 +203,17 @@ const canvas = document.querySelector('.webgl');
 const renderer = new THREE.WebGLRenderer({ 
     canvas: canvas,
     alpha: true
- });
+});
+renderer.shadowMap.enabled = true
+renderer.shadowMap.type = THREE.PCFSoftShadowMap
 renderer.setSize(sizes.width, sizes.height);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-// Scroll
-let scrollY = window.scrollY;
-let currentSection = 0;
-window.addEventListener('scroll', () => 
-{
-    scrollY = window.scrollY;
-    const newSection = Math.round(scrollY / sizes.height);
-
-    if (newSection != currentSection) 
-    {
-        currentSection = newSection;
-
-        gsap.to(
-            sectionMeshes[currentSection].rotation,
-            {
-                duration: 1.5,
-                ease: 'power2.inOut',
-                x: '+=6',
-                z: '+=3'
-            }
-        );
-    }
-})
-// Cursor
-const cursor = {};
-cursor.x = 0;
-cursor.y = 0;
-
-window.addEventListener('mousemove', (event) => 
-{
-    // Center coords
-    cursor.x = event.clientX / sizes.width  - 0.5;
-    cursor.y = event.clientY / sizes.height - 0.5;
-})
 
 // +++++++++++++++++++++++++++++++++++++++
 // +++  Camera
-const cameraGroup = new THREE.Group();
-const camera   = new THREE.PerspectiveCamera(35, sizes.width / sizes.height, 0.1, 100);
-camera.position.z = 7;
-cameraGroup.add(camera);
-scene.add(cameraGroup);
+const camera   = new THREE.PerspectiveCamera(55, sizes.width / sizes.height, 0.1, 100);
+camera.position.set(-3, 3, 7)
+scene.add(camera);
 
 // +++++++++++++++++++++++++++++++++++++++
 // +++  Resizing
@@ -199,6 +234,78 @@ window.addEventListener('resize', () =>
 window.dispatchEvent(new CustomEvent('resize'));
 
 // +++++++++++++++++++++++++++++++++++++++
+// +++  Utils
+const objectToUpdate = [];
+
+// Cubes
+const boxGeo =  new THREE.BoxBufferGeometry(1, 1, 1);
+const boxMat = new THREE.MeshStandardMaterial({
+    metalness: 0.3,
+    roughness: 0.4,
+    envMap: environmentMapTexture
+})
+const createBox = (width, height, depth, position) =>
+{
+    const mesh = new THREE.Mesh(boxGeo, boxMat);
+    mesh.scale.set(width, height, depth);
+    mesh.castShadow = true;
+    mesh.position.copy(position);
+    scene.add(mesh);
+
+    // Cannon.js body
+    const shape = new CANNON.Box(new CANNON.Vec3(width * 0.5, height * 0.5, depth * 0.5));
+    const body = new CANNON.Body({
+        mass: 1,
+        position: new CANNON.Vec3(0, 3, 0),
+        shape,
+        material: concreteMat,
+    });
+    body.position.copy(position);
+    body.addEventListener('collide', playHitSound);
+    world.addBody(body);
+
+    // Save in objects to update
+    objectToUpdate.push({ mesh, body });
+}
+// Spheres
+const sphereGeo =  new THREE.SphereBufferGeometry(1, 20, 20);
+const sphereMat = new THREE.MeshStandardMaterial({
+    metalness: 0.3,
+    roughness: 0.4,
+    envMap: environmentMapTexture
+})
+const createSphere = (radius, position) =>
+{
+    const mesh = new THREE.Mesh(sphereGeo, sphereMat);
+    mesh.scale.set(radius, radius, radius);
+    mesh.castShadow = true;
+    mesh.position.copy(position);
+    scene.add(mesh);
+
+    // Cannon.js body
+    const shape = new CANNON.Sphere(radius);
+    const body = new CANNON.Body({
+        mass: 1,
+        position: new CANNON.Vec3(0, 3, 0),
+        shape: shape,
+        material: concreteMat,
+    });
+    body.position.copy(position);
+    body.addEventListener('collide', playHitSound);
+    world.addBody(body);
+
+    // Save in objects to update
+    objectToUpdate.push({ mesh, body });
+}
+createSphere(0.5, { x:1, y:3, z:-1 });
+createSphere(0.5, { x:2, y:3, z:2 });
+createSphere(0.5, { x:3, y:3, z:1 });
+
+// +++++++++++++++++++++++++++++++++++++++
+// +++  Controls
+const controls = new OrbitControls(camera, canvas);
+
+// +++++++++++++++++++++++++++++++++++++++
 // +++  Time
 const clock = new THREE.Clock();
 let lastFrameTime = 0;
@@ -209,22 +316,18 @@ const tick = () => {
     const elapsedTime = clock.getElapsedTime();
     const deltaTime = elapsedTime - lastFrameTime;
     lastFrameTime = elapsedTime;
-    
-    // Animate Camera
-    camera.position.y = -scrollY / sizes.height * objectsDistance;
-    const parallaxX = cursor.x;
-    const parallaxY = -cursor.y;
-    
-    const smoothValue = 3;
-    cameraGroup.position.x += (parallaxX - cameraGroup.position.x) * smoothValue * deltaTime;
-    cameraGroup.position.y += (parallaxY - cameraGroup.position.y) * smoothValue * deltaTime;
-    // Animate Meshes
-    for(const mesh of sectionMeshes)
-    {
-        mesh.rotation.x += deltaTime * 0.1;
-        mesh.rotation.y += deltaTime * 0.12;
+
+    // UPDATE physics world
+    // sphereBody.applyForce(new CANNON.Vec3(-0.5, 0, 0), sphereBody.position);
+    world.step(1/60, deltaTime, 3);
+    for(const object of objectToUpdate) {
+        object.mesh.position.copy(object.body.position);
+        object.mesh.quaternion.copy(object.body.quaternion);
     }
 
+    // UPDATE control
+    controls.update();
+    
     // UPDATE Render
     renderer.render(scene, camera);
     window.requestAnimationFrame(tick);
