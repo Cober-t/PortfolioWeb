@@ -3,6 +3,8 @@ import * as THREE from 'three'
 import * as dat from 'dat.gui'
 import CANNON, { World } from 'cannon'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js'
 import gsap from 'gsap'
 
 console.time('LOAD');
@@ -12,19 +14,69 @@ console.time('LOAD');
 const scene = new THREE.Scene();
 
 // +++++++++++++++++++++++++++++++++++++++
-// +++  Audio
-const hitSound = new Audio('/sounds/hit.mp3');
-const playHitSound = (collision) =>
-{
-    const impactStrenght = collision.contact.getImpactVelocityAlongNormal();
-    
-    if (impactStrenght > 1.5) 
+// +++  Models
+// Before gltfLoader
+const dracoLoader = new DRACOLoader();
+dracoLoader.setDecoderPath('/draco/');
+
+const gltfLoader = new GLTFLoader();
+// Don't use draco loader with low meshes
+gltfLoader.setDRACOLoader(dracoLoader);
+
+let mixer = null;
+let helmetMesh = new THREE.Group();
+gltfLoader.load(
+    '/models/Duck/glTF-Draco/Duck.gltf',
+    (gltf) =>
     {
-        hitSound.volume = Math.random();
-        hitSound.currentTime = 0;
-        hitSound.play();
+        const children = [...gltf.scene.children]
+        for(const child of children)
+        {
+            child.position.x = -2;
+            child.rotation.y = -Math.PI/2;
+            scene.add(child);
+        }
+
+        // scene.add(gltf.scene);
     }
-}
+)
+gltfLoader.load(
+    '/models/Fox/glTF/Fox.gltf',
+    (gltf) =>
+    {
+        mixer = new THREE.AnimationMixer(gltf.scene);
+        const action = mixer.clipAction(gltf.animations[1]);
+
+        action.play();
+
+        gltf.scene.scale.set(0.025, 0.025, 0.025);
+        scene.add(gltf.scene);
+    }
+)
+
+gltfLoader.load(
+    '/models/FlightHelmet/glTF/FlightHelmet.gltf',
+    (gltf) =>
+    {
+        // Various Solutions
+        // 1: Because when we import something, it delete from the origin scene
+        //while(gltf.scene.children.length > 0)
+        //    helmetMesh.add(gltf.scene.children[0]);
+
+        // 2: For make a copy and dont delete childrens from scene
+        const children = [...gltf.scene.children];
+        for(const child of children)
+            helmetMesh.add(child);
+
+        helmetMesh.position.x = 2;
+        scene.add(helmetMesh);
+
+        // 3: Another solution consist on copy the whole scene
+        // scene.add(gltf.scene)
+    }
+)
+
+
 // +++++++++++++++++++++++++++++++++++++++
 // +++  Texture
 const textureLoader = new THREE.TextureLoader();
@@ -64,45 +116,9 @@ const debugObject =
                 document.webkiFullscreenElement();
         }
     },
-    reset: () => 
-    {
-        for(const object of objectToUpdate)
-        {
-            object.body.removeEventListener('collide', playHitSound);
-            world.removeBody(object.body);
-
-            scene.remove(object.mesh);
-        }
-    },
     visible: true,
-    createSphere: () => 
-    { 
-        createSphere( 
-        Math.random(), 
-        {
-            x:(Math.random() - 0.5) * 3,
-            y:3,
-            z:(Math.random() - 0.5) * 3,
-        }); 
-    },
-    createBox: () => 
-    { 
-        createBox(
-            Math.random(), 
-            Math.random(), 
-            Math.random(), 
-            {
-                x:(Math.random() - 0.5) * 3,
-                y:3,
-                z:(Math.random() - 0.5) * 3,
-            }
-        ); 
-    }
 }
 gui.add(debugObject, 'fullscreen');
-gui.add(debugObject, 'reset');
-gui.add(debugObject, 'createSphere');
-gui.add(debugObject, 'createBox');
 
 window.addEventListener('dblclick', () => 
 {
@@ -129,43 +145,6 @@ dirLight.position.set(5, 5, 5)
 scene.add(dirLight);
 
 // +++++++++++++++++++++++++++++++++++++++
-// +++  Physics
-// World
-const world = new CANNON.World();
-// Collision Algorithm (naive for default)
-world.broadphase = new CANNON.SAPBroadphase(world);
-// Don't check rest bodies until a force affect them
-// can control body asleep with slepSpeedLimit and sleepTimeLimit
-world.allowSleep = true;
-world.gravity.set(0, -9.82, 0);
-
-// Physics Materials
-const concreteMat = new CANNON.Material('concrete');
-const plasticMat = new CANNON.Material('plastic');
-const concretePlasticContactMaterial = new CANNON.ContactMaterial(
-    concreteMat,
-    plasticMat,
-    {
-        friction: 0.1,
-        restitution: 0.7
-    }
-);
-world.addContactMaterial(concretePlasticContactMaterial);
-// world.defaultContactMaterial(defaultContactMaterial);
-
-// Floor
-const floorShape = new CANNON.Plane();
-const floorBody = new CANNON.Body();
-floorBody.mass = 0;
-floorBody.position.y = -0.5;
-floorBody.material = concreteMat;
-floorBody.quaternion.setFromAxisAngle(
-    new CANNON.Vec3(-1, 0, 0), 
-    Math.PI * 0.5);
-floorBody.addShape(floorShape);
-world.addBody(floorBody);
-
-// +++++++++++++++++++++++++++++++++++++++
 // +++  Geometry
 // Material
 const material = new THREE.MeshStandardMaterial({
@@ -174,7 +153,6 @@ const material = new THREE.MeshStandardMaterial({
     envMap: environmentMapTexture,
     envMapIntensity: 0.5
 });
-
 // Meshes
 const floor = new THREE.Mesh(
     new THREE.PlaneGeometry(10, 10),
@@ -187,7 +165,6 @@ const floor = new THREE.Mesh(
     })
 );
 floor.receiveShadow = true;
-floor.position.y = -0.5;
 floor.rotation.x = -Math.PI/2;
 scene.add(floor);
 
@@ -234,74 +211,6 @@ window.addEventListener('resize', () =>
 window.dispatchEvent(new CustomEvent('resize'));
 
 // +++++++++++++++++++++++++++++++++++++++
-// +++  Utils
-const objectToUpdate = [];
-
-// Cubes
-const boxGeo =  new THREE.BoxBufferGeometry(1, 1, 1);
-const boxMat = new THREE.MeshStandardMaterial({
-    metalness: 0.3,
-    roughness: 0.4,
-    envMap: environmentMapTexture
-})
-const createBox = (width, height, depth, position) =>
-{
-    const mesh = new THREE.Mesh(boxGeo, boxMat);
-    mesh.scale.set(width, height, depth);
-    mesh.castShadow = true;
-    mesh.position.copy(position);
-    scene.add(mesh);
-
-    // Cannon.js body
-    const shape = new CANNON.Box(new CANNON.Vec3(width * 0.5, height * 0.5, depth * 0.5));
-    const body = new CANNON.Body({
-        mass: 1,
-        position: new CANNON.Vec3(0, 3, 0),
-        shape,
-        material: concreteMat,
-    });
-    body.position.copy(position);
-    body.addEventListener('collide', playHitSound);
-    world.addBody(body);
-
-    // Save in objects to update
-    objectToUpdate.push({ mesh, body });
-}
-// Spheres
-const sphereGeo =  new THREE.SphereBufferGeometry(1, 20, 20);
-const sphereMat = new THREE.MeshStandardMaterial({
-    metalness: 0.3,
-    roughness: 0.4,
-    envMap: environmentMapTexture
-})
-const createSphere = (radius, position) =>
-{
-    const mesh = new THREE.Mesh(sphereGeo, sphereMat);
-    mesh.scale.set(radius, radius, radius);
-    mesh.castShadow = true;
-    mesh.position.copy(position);
-    scene.add(mesh);
-
-    // Cannon.js body
-    const shape = new CANNON.Sphere(radius);
-    const body = new CANNON.Body({
-        mass: 1,
-        position: new CANNON.Vec3(0, 3, 0),
-        shape: shape,
-        material: concreteMat,
-    });
-    body.position.copy(position);
-    body.addEventListener('collide', playHitSound);
-    world.addBody(body);
-
-    // Save in objects to update
-    objectToUpdate.push({ mesh, body });
-}
-createSphere(0.5, { x:1, y:3, z:-1 });
-createSphere(0.5, { x:2, y:3, z:2 });
-createSphere(0.5, { x:3, y:3, z:1 });
-
-// +++++++++++++++++++++++++++++++++++++++
 // +++  Controls
 const controls = new OrbitControls(camera, canvas);
 
@@ -317,13 +226,9 @@ const tick = () => {
     const deltaTime = elapsedTime - lastFrameTime;
     lastFrameTime = elapsedTime;
 
-    // UPDATE physics world
-    // sphereBody.applyForce(new CANNON.Vec3(-0.5, 0, 0), sphereBody.position);
-    world.step(1/60, deltaTime, 3);
-    for(const object of objectToUpdate) {
-        object.mesh.position.copy(object.body.position);
-        object.mesh.quaternion.copy(object.body.quaternion);
-    }
+    // UPDATE mixer (for loading models with animations)
+    if(mixer !== null)
+        mixer.update(deltaTime);
 
     // UPDATE control
     controls.update();
