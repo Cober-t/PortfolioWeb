@@ -1,4 +1,5 @@
-import * as dat from 'lil-gui'
+// import * as dat from 'lil-gui'
+import * as dat from 'dat.gui'
 
 export default class Debug
 {
