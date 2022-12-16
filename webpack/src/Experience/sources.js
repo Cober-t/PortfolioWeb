@@ -26,5 +26,20 @@ export default [
         name: 'foxModel',
         type: 'gltfModel',
         path: 'models/Fox/glTF/Fox.gltf'
+    },
+    {
+        name: 'headColorTexture',
+        type: 'texture',
+        path: 'models/LeePerrySmith/color.jpg'
+    },
+    {
+        name: 'headNormalTexture',
+        type: 'texture',
+        path: 'models/LeePerrySmith/normal.jpg'
+    },
+    {
+        name: 'headModel',
+        type: 'gltfModel',
+        path: 'models/LeePerrySmith/LeePerrySmith.glb'
     }
 ]
