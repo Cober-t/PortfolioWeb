@@ -1,9 +1,11 @@
 import * as THREE from 'three'
 import Experience  from '../Experience.js'
 import Environment from './Environment.js'
+import PostProcessing from '../PostProcessing.js'
 import Floor from './Floor.js'
 import Fox   from './Fox.js'
 import Head  from './Head.js'
+import Helmet  from './Helmet.js'
 
 
 // Shader test (abstract class)
@@ -23,13 +25,16 @@ export default class World
         this.time = this.experience.time;
 
         // Wait for Resources
-        this.resources.on('ready', ()=> { 
+        this.resources.on('ready', ()=> {
             // Setup
             //this.floor = new Floor();
             //this.fox = new Fox();
-            this.head = new Head();
+            // this.head = new Head();
+            this.helmet = new Helmet();
+            this.postProcessing = new PostProcessing();
+
             // Load the last one to apply changes to the rest of elements in the scene
-            this.environment = new Environment(); 
+            this.environment = new Environment();
         });
     }
 
@@ -37,7 +42,7 @@ export default class World
     {
         if(this.fox)
             this.fox.update();
-
+        
         if(this.head)
             this.head.update();
     }

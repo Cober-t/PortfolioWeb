@@ -23,6 +23,7 @@ export default class Renderer
         this.instance.shadowMap.enabled = true;
         this.instance.shadowMap.type = THREE.PCFShadowMap;
         this.instance.physicallyCorrectLights = true;
+        // Don't work well with post processing passes
         this.instance.outputEncoding = THREE.sRGBEncoding;
         this.instance.toneMapping = THREE.ACESFilmicToneMapping;
         this.instance.toneMappingExposure = 1;
@@ -34,7 +35,7 @@ export default class Renderer
     resize()
     {
         this.instance.setSize(this.sizes.width, this.sizes.height);
-        this.instance.setPixelRatio(this.sizes.pixelRatio);
+        this.instance.setPixelRatio(Math.min(this.sizes.pixelRatio, 2));        
     }
 
     update()

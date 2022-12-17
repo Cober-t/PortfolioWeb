@@ -16,7 +16,7 @@ export default class Experience
     {
         // Singleton
         if(instance !== null)
-        return instance;    
+            return instance;    
 
         instance = this;
         window.experience = this;
@@ -32,15 +32,19 @@ export default class Experience
         this.camera = new Camera();
         this.renderer = new Renderer();
         this.world = new World();
-
+        
         this.sizes.on('resize', () => { this.resize() });
         this.time.on('tick', () => { this.update() });
+        
     }
     
     resize()
     {
         this.camera.resize();
         this.renderer.resize();
+
+        if(this.world.postProcessing)
+            this.world.postProcessing.resize();
     }
 
     update()
@@ -48,6 +52,9 @@ export default class Experience
         this.camera.update();
         this.world.update();
         this.renderer.update();
+        
+        if(this.world.postProcessing)
+            this.world.postProcessing.update();
     }
 
     destroy()
