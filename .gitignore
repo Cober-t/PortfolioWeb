@@ -6,6 +6,5 @@ webpack/dist/fonts
 webpack/dist/textures
 
 # Files
-**.bat
 webpack/readme.md
 webpack/**.json

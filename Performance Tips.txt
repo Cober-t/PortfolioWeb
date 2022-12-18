@@ -1,0 +1,84 @@
+# +++++++ PERFORMANCE TIPS +++++++ //
+# +++++++ GENERAL TIPS
+# + Keep a performant native JavaScript code especially in the update function
+# + Dispose from all things you dont need always you can
+# + Keep and eye on the performance from the start
+# + Test on other devices
+
+# +++++++ LIGHTS
+# + Avoid lights always you can. If you must add a light, add a cheap light and remove it when you can
+# + When adding or removing light from the scene all the materials supporting lights will hace to be recompiled
+
+# +++++++ SHADOWS
+# + Avoid shadows, use bake shadows, same techcnique with lights
+# + Optimice shadow map, make sure it fits perfectly with the scene
+# + Use cast shadow and receive shadow wisely
+# + Deactivate shadow auto update (and update manually when you prefer)
+
+# +++++++ TEXTURES
+# + Textures take a lot of space in the GPU memory, especially with the mipmaps
+# + Try to use as small texture resolution as possible and the smaller number of it
+# + Keep a power of 2 in texture's resolution to avoid WebGL do it for you probably wrong
+# + Use the right format, png only for transparencies, even you can use materials with jpg textures and alpha maps
+# + You can use TinyPNG to reduce the weight even more, you can try basis format too
+
+# +++++++ GEOMETRY
+# + Use buffer geometry
+# + Dont update vertices
+# + If you have multiple meshes using the same geometry shape, create only one geometry and use it on all the meshes
+# + If the geometries are not suposed to move, you can merge them by using BufferGeometryUtils
+#   const mergedGeometry = BufferGeometryUtils.mergeBufferGeometries(geometries)
+# + Try to use cheap materials. Some materials like Standard or Physical need more resources than Basic, Lambert, Phong...
+# + Use InstancedMesh
+# // const mesh = new THREE.InstancedMesh(geometry, material, 50)
+# // scene.add(mesh)
+# // for (let i = 0; i < 50; i++) {
+# //   const position = new THREE.Vector3(
+# //       (Math.random() - 0.5) * 1.0,
+# //       (Math.random() - 0.5) * 1.0,
+# //       (Math.random() - 0.5) * 1.0
+# //   )
+# //   const quaternion = new THREE.Quaternion()
+# //   quaternion.setFromEuler(new THREE.Euler(
+# //       (Math.random() - 0.5) * Math.PI * 2,
+# //       (Math.random() - 0.5) * Math.PI * 2,
+# //       0
+# //   ))
+# //   const matrix = new THREE.Matrix4()
+# //   matrix.makeRotationFromQuaternion(quaternion)
+# //   matrix.setPosition(position)
+# //   mesh.setMatrixAt(i, matrix)
+# // }
+# + If you intend to change these matrices in the update function, add this
+# // mesh.instancedMatrix.setUsage(THREE.DynamicDrawUsage)
+# + If the model has a lot of details with very complex geomtries use Draco compression
+# + Use Gzip (compression happening on the server side), most of the servers don't gzip files as .glb, .gltf, .obj, etc.
+
+# +++++++ CAMERAS
+# + When objects are not in the field of view they won't be rendered, you can try to reduce the FOV
+# + Like the FOV, reduce near and far properties as need it
+
+# +++++++ RENDERER
+# + Don't use default pixel ratio, because some devices has huge and unnecesary pixel ratios
+# + Some devices may be able to switch between different GPU or differente GPU usage (use the best GPU you can), if don't have frame rate issues don't use it
+# // const renderer = new THREE.WebGLRenderer({
+# //   canvas: canvas,
+# //   powerPreferences: 'high-performance'
+# // })
+# + Default Antialias is performant but less performant than no antialias. Only add it if you have visible aliasing and no performance issue
+# + Post procession passes are bad for performance because will take as many pixels as the render's resolution (including the pixel ratio)
+# + Try to regroup your custom passes into one
+# // Resolution: 1920x1080 - PixelRatio: 2 - Passes: 4
+# // 1920 * 2 1080 * 2 * 4 = 33.177.600 pixels
+        
+# +++++++ SHADERS
+# + You can force the precision of the shaders in the materials by changing their precision property (precision: 'lowp')
+#    This don't work with RawShaderMaterial, because you will have to add the precision by yourself
+# + Keep your shaders code simple, avoid if statements, make food use of swizzles and built-in functions.
+#   Or as in the fragment shader, instead of these complex formulas for r, g and b you can use the mix built-in function
+# + Use textures instead of complex formulas like Perlin Noise
+# + If the value isn't supposed to change, you can use defines instead of uniforms
+#   You can declare defines in the shader material too (defines: { DISPLACMENT_STRENGTH: 1.5 })
+# + Do the calculations in the vertex shader, because we have less vertex than fragments (usually)
+
+# https://discoverthreejs.com/tips-and-tricks/

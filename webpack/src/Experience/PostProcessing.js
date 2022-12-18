@@ -91,7 +91,6 @@ export default class PostProcessing
 
     update() 
     {
-        console.log('dasdasd')
         customUniforms.uTime.value = this.time.elapsed * 0.001;
         this.effectComposer.render();
     }

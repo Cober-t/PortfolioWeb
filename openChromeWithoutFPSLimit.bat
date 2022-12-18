@@ -1,0 +1,1 @@
+start chrome --args --disable-gpu-vsync --disable-frame-rate-limit
