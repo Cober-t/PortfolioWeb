@@ -66,7 +66,7 @@ export default class Environment
         this.environmentMap.texture.encoding = THREE.sRGBEncoding;
 
         this.scene.environment = this.environmentMap.texture;
-        this.scene.background = this.environmentMap.texture;
+        // this.scene.background = this.environmentMap.texture;
 
         // Update materials on the scene if needed (ej. load environmentMapTex after a Mesh)
         this.environmentMap.updateMaterials = () =>

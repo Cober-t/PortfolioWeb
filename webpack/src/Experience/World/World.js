@@ -27,8 +27,8 @@ export default class World
         // Wait for Resources
         this.resources.on('ready', ()=> {
             // Setup
-            // this.floor = new Floor();
-            // this.fox = new Fox();
+            this.floor = new Floor();
+            this.fox = new Fox();
             // this.head = new Head();
             // this.helmet = new Helmet();
             // this.postProcessing = new PostProcessing();

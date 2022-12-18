@@ -17,8 +17,8 @@ export default class Renderer
     setInstance()
     {
         this.instance = new THREE.WebGLRenderer({
-                canvas: this.canvas,
-                antialias: true
+            canvas: this.canvas,
+            antialias: true
         });
         this.instance.shadowMap.enabled = true;
         this.instance.shadowMap.type = THREE.PCFShadowMap;

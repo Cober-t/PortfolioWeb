@@ -7,6 +7,7 @@ import World from './World/World.js'
 import Resources from './Utils/Resources'
 import sources from './sources.js'
 import Debug from './Utils/Debug.js'
+import Loader from './Utils/Loader'
 import { BufferGeometryUtils } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 
 let instance = null
@@ -26,20 +27,22 @@ export default class Experience
 
         // Setup
         this.debug = new Debug();
-
+        
         this.sizes = new Sizes();
         this.time = new Time();
         this.scene = new THREE.Scene();
+        this.loader = new Loader();
         this.resources = new Resources(sources);
         this.camera = new Camera();
         this.renderer = new Renderer();
         this.world = new World();
         
+        
         this.sizes.on('resize', () => { this.resize() });
         this.time.on('tick', () => { this.update() });
 
         // Performance tip
-        console.log(this.renderer.info);
+        // console.log(this.renderer.instance.info);
     }
     
     resize()
