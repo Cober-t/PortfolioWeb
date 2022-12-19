@@ -48,18 +48,23 @@ export default class Loader
         )
     }
 
-    LoadingCompleted(material)
+    LoadingCompleted(material) 
     {
         // Wait a little
-        gsap.delayedCall(0.5, ()=>
-        {
-            // Animate overlay
-            gsap.to(material.uniforms.uAlpha, { duration: 3.0 , value: 0, delay: 1 })   
+        // gsap.delayedCall(0.5, ()=> {
+            /* ... */
+        // })
+        window.setTimeout(() => {
+            gsap.to(material.uniforms.uAlpha, { duration: 3 , value: 0, delay: 1 })   
             // Update loadingBarElement
             loadingBarElement.classList.add('ended')
-            loadingBarElement.style.transform = ''
-        })
-        //window.setTimeout(() => /* ... */  }, 500)
+            loadingBarElement.style.transform = ''  
+        }, 500)
+
+        window.setTimeout(() =>
+        {
+            this.scene.sceneReady = true;
+        }, 3000)
     }
 
     LoadingProgress(itemUrl, itemsLoaded, itemsTotal)

@@ -8,7 +8,7 @@ import Resources from './Utils/Resources'
 import sources from './sources.js'
 import Debug from './Utils/Debug.js'
 import Loader from './Utils/Loader'
-import { BufferGeometryUtils } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
+import Raycaster from './Utils/Raycaster'
 
 let instance = null
 
@@ -27,16 +27,18 @@ export default class Experience
 
         // Setup
         this.debug = new Debug();
-        
         this.sizes = new Sizes();
         this.time = new Time();
+        
         this.scene = new THREE.Scene();
+        this.scene.sceneReady = false;
         this.loader = new Loader();
         this.resources = new Resources(sources);
         this.camera = new Camera();
         this.renderer = new Renderer();
         this.world = new World();
         
+        this.raycaster = new Raycaster();
         
         this.sizes.on('resize', () => { this.resize() });
         this.time.on('tick', () => { this.update() });
@@ -64,6 +66,8 @@ export default class Experience
         
         if(this.world.postProcessing)
             this.world.postProcessing.update();
+
+        this.raycaster.update();
 
         this.debug.measureFPSEnd();
     }

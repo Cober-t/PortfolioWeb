@@ -47,15 +47,15 @@ export default class Fox
 
     setModel()
     {
-        let helmetMesh = new THREE.Group();
+        this.model = new THREE.Group();
         const children = [...this.resource.scene.children];
         for(const child of children) 
         {
-            helmetMesh.add(child);
+            this.model.add(child);
         }
 
-        helmetMesh.scale.set(5, 5, 5);
-        this.scene.add(helmetMesh);
+        this.model.scale.set(5, 5, 5);
+        this.scene.add(this.model);
     }
 
     update()
