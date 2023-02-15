@@ -1,5 +1,5 @@
 # Directories
-First React Three Fiber Application/node_modules
+First_React_Three_Fiber_Application/node_modules
 webpack/bundler
 webpack/node_modules
 webpack/static
@@ -9,3 +9,4 @@ webpack/dist/textures
 # Files
 webpack/readme.md
 webpack/**.json
+*.pack
