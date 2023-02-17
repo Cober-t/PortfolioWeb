@@ -33,7 +33,7 @@ root.render(
         toneMapping: THREE.ACESFilmicToneMapping, // default
         outputEncoding: THREE.sRGBEncoding // (default)
       } } 
-      shadows={ false } // True for Accumulative Shadows - False for Contact Shadows
+      shadows
       camera={ cameraSettings }
       // onCreated={ created }
       >
