@@ -5,6 +5,7 @@ import Experince from './Experience.js';
 import * as THREE from 'three'
 import { Leva } from 'leva';
 import { StrictMode } from 'react'
+import { Scene } from 'three';
 
 const root = ReactDOM.createRoot(document.querySelector('#root'));
 
@@ -15,6 +16,10 @@ const cameraSettings = {
   far: 200, 
   position: [3, 2, 6] 
 }
+
+// Diferent ways of coloring background
+// const created = ({ gl })    => { gl.setClearColor('#ff0000', 1) }
+// const created = ({ scene }) => { scene.background = new THREE.Color('red') }
 
 root.render(
   <StrictMode>
@@ -28,7 +33,9 @@ root.render(
         toneMapping: THREE.ACESFilmicToneMapping, // default
         outputEncoding: THREE.sRGBEncoding // (default)
       } } 
+      shadows={ false } // True for Accumulative Shadows - False for Contact Shadows
       camera={ cameraSettings }
+      // onCreated={ created }
       >
         <Experince />
     </Canvas>
